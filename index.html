@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Speechwise-AAC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f0f4f8;
+    }
+
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 10px;
+      gap: 10px;
+    }
+
+    #resetAll {
+      padding: 10px 20px;
+      background: #e12121;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .top-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      flex: 5;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 10px;
+      flex: 9;
+    }
+
+    .cell {
+      background: #dadada;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-size: clamp(14px, 2vw, 18px);
+      font-weight: bold;
+      color: black;
+      border-radius: 12px;
+      text-align: center;
+      position: relative;
+      padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+    }
+
+    .emoji {
+      font-size: clamp(24px, 5vw, 40px);
+      margin-bottom: 6px;
+    }
+
+.status {
+  font-size: 20px;
+  color: #222;
+  margin-top: 8px;     /* adds spacing below the image */
+  position: static;    /* or just remove 'position' altogether */
+}
+
+
+    .delete-btn {
+      position: absolute;
+      bottom: 6px;
+      font-size: 12px;
+      color: rgb(238, 30, 30);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <button id="resetAll"> امسح كل التسجيلات</button>
+  <div class="top-row" id="topRow"></div>
+  <div class="bottom-grid" id="bottomGrid"></div>
+</div>
+
+<script>
+  const feelings = [
+  { key: "Yes", text: "اي", emoji: "https://cdn-icons-png.freepik.com/512/12510/12510148.png"},
+    { key: "No", text: "لا", emoji: "https://cdn-icons-png.freepik.com/512/12510/12510152.png" },
+    { key: "Tired", text: "تعبان", emoji: "https://cdn-icons-png.freepik.com/512/3017/3017401.png" },
+    { key: "Water", text: "ماي", emoji: "https://cdn-icons-png.freepik.com/512/17348/17348775.png" },
+    { key: "Hungry", text: "اكل", emoji: "https://cdn-icons-png.freepik.com/512/3628/3628069.png" },
+    { key: "TV", text: "تلفزيون", emoji: "https://cdn-icons-png.freepik.com/512/5537/5537518.png" },
+    { key: "Bathroom", text: "حمام", emoji: "https://cdn-icons-png.freepik.com/512/564/564006.png" },
+    { key: "shirt", text: "ابدل", emoji: "https://cdn-icons-png.freepik.com/512/1415/1415746.png" },
+    { key: "supermarket", text: "جمعية", emoji: "https://cdn-icons-png.freepik.com/512/7560/7560126.png" },
+    { key: "glasses", text: "نظارة", emoji: "https://cdn-icons-png.freepik.com/512/11752/11752910.png" },
+    { key: "phone", text: "تلفون", emoji: "https://cdn-icons-png.freepik.com/128/644/644423.png?fd=1&filename=iphone_644423.png" },
+    { key: "sleep", text: "انام", emoji: "https://cdn-icons-png.freepik.com/512/3993/3993606.png" }
+  ];
+
+  const dbName = 'FeelingsAudioDB';
+  let db;
+
+  const request = indexedDB.open(dbName, 1);
+  request.onupgradeneeded = function(event) {
+    db = event.target.result;
+    db.createObjectStore("audios", { keyPath: "key" });
+  };
+  request.onsuccess = function(event) {
+    db = event.target.result;
+    buildLayout();
+  };
+  request.onerror = function() {
+    alert("فشل الاتصال بقاعدة البيانات");
+  };
+
+  async function buildLayout() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const topRow = document.getElementById('topRow');
+    const bottomGrid = document.getElementById('bottomGrid');
+    topRow.innerHTML = '';
+    bottomGrid.innerHTML = '';
+
+    // 2 top feelings
+    for (let i = 0; i < 2; i++) {
+      createCell(feelings[i], topRow, stream);
+    }
+
+    // next 9 feelings in 3x3 grid
+    for (let i = 2; i < 11; i++) {
+      createCell(feelings[i], bottomGrid, stream);
+    }
+  }
+
+  function createCell(feeling, container, stream) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+
+   const emojiDiv = document.createElement('img');
+    emojiDiv.className = 'emoji';
+    emojiDiv.src = feeling.emoji;
+    emojiDiv.alt = feeling.text;
+    emojiDiv.style.width = "72px";
+    emojiDiv.style.height = "72px";
+    emojiDiv.style.marginBottom = "8px";  // 👈 keeps space between image and text
+
+    const textDiv = document.createElement('div');
+    textDiv.textContent = feeling.text;
+
+    const status = document.createElement('div');
+    status.className = 'status';
+    status.textContent = '▶️';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.textContent = 'امسح التسجيل';
+    deleteBtn.style.display = 'none';
+
+    cell.appendChild(emojiDiv);
+    cell.appendChild(textDiv);
+    cell.appendChild(status);
+    cell.appendChild(deleteBtn);
+    container.appendChild(cell);
+
+    let recording = false;
+    let hasAudio = false;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    getAudio(feeling.key).then(existingBlob => {
+      if (existingBlob) {
+        hasAudio = true;
+        status.textContent = '';
+        deleteBtn.style.display = 'inline';
+      }
+    });
+
+    cell.addEventListener('click', async (event) => {
+      if (event.target === deleteBtn) return;
+
+      if (!hasAudio && !recording) {
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          saveAudio(feeling.key, blob);
+          hasAudio = true;
+          status.textContent = '';
+          deleteBtn.style.display = 'inline';
+        };
+        mediaRecorder.start();
+        recording = true;
+        status.textContent = '🎙️';
+
+      } else if (recording) {
+        mediaRecorder.stop();
+        recording = false;
+
+      } else if (hasAudio) {
+        getAudio(feeling.key).then(blob => {
+          if (blob) {
+            const audio = new Audio(URL.createObjectURL(blob));
+            audio.play();
+            status.textContent = '';
+            audio.onended = () => {
+              status.textContent = '';
+            };
+          }
+        });
+      }
+    });
+
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteAudio(feeling.key).then(() => {
+        hasAudio = false;
+        status.textContent = '▶️';
+        deleteBtn.style.display = 'none';
+      });
+    });
+  }
+
+  function saveAudio(key, blob) {
+    const tx = db.transaction(["audios"], "readwrite");
+    const store = tx.objectStore("audios");
+    store.put({ key: key, blob: blob });
+  }
+
+  function getAudio(key) {
+    return new Promise((resolve) => {
+      const tx = db.transaction(["audios"], "readonly");
+      const store = tx.objectStore("audios");
+      const request = store.get(key);
+      request.onsuccess = () => {
+        resolve(request.result ? request.result.blob : null);
+      };
+      request.onerror = () => resolve(null);
+    });
+  }
+
+  function deleteAudio(key) {
+    return new Promise((resolve) => {
+      const tx = db.transaction(["audios"], "readwrite");
+      const store = tx.objectStore("audios");
+      const request = store.delete(key);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    });
+  }
+
+  document.getElementById('resetAll').addEventListener('click', () => {
+    const tx = db.transaction(["audios"], "readwrite");
+    const store = tx.objectStore("audios");
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      alert('✅ تم مسح جميع التسجيلات');
+      buildLayout();
+    };
+
+    clearRequest.onerror = () => {
+      alert('❌ حدث خطأ أثناء المسح');
+    };
+  });
+</script>
+
+</body>
+</html>
